@@ -6,15 +6,18 @@ public class HashTable<K, V> : IEnumerable<KeyValue<K, V>>
 {
 
     private const int InitialCapacity = 16;
-    private const double LoadFactor = 0.80d;
+    private const double LoadFactor = 0.75d;
 
     private LinkedList<KeyValue<K, V>>[] slots;
     private int count;
+    private int collisionCount;
+
 
     public HashTable()
     {
         this.slots = new LinkedList<KeyValue<K, V>>[InitialCapacity];
         this.count = 0;
+        this.collisionCount = 0;
     }
 
     public HashTable(int capacity)
@@ -31,6 +34,10 @@ public class HashTable<K, V> : IEnumerable<KeyValue<K, V>>
         {
             slots[slotNumber] = new LinkedList<KeyValue<K, V>>();
         }
+        else
+        {
+            collisionCount++;  // Увеличиваем счетчик коллизий
+        }
 
         foreach (var item in slots[slotNumber])
         {
@@ -44,9 +51,28 @@ public class HashTable<K, V> : IEnumerable<KeyValue<K, V>>
         count++;
     }
 
+    public int GetCollisionCount()
+    {
+        return collisionCount;
+    }
+
+    private int ImprovedGetHashCode(K key)
+    {
+        unchecked
+        {
+            int hash = 17; // начальное значение простого числа
+            foreach (char c in key.ToString())
+            {
+                hash = hash * 31 + c; // 31 - еще одно простое число
+            }
+            return hash;
+        }
+    }
+
     private int FindSlotNumber(K key)
     {
-        int hashCode = key.GetHashCode();
+        //int hashCode = key.GetHashCode();
+        int hashCode = ImprovedGetHashCode(key);
         return Math.Abs(hashCode % slots.Length);
     }
 
@@ -56,6 +82,11 @@ public class HashTable<K, V> : IEnumerable<KeyValue<K, V>>
         {
             Grow();
         }
+    }
+
+    public double GetLoadFactor()
+    {
+        return (double)count / slots.Length;
     }
 
     private void Grow()
@@ -69,7 +100,8 @@ public class HashTable<K, V> : IEnumerable<KeyValue<K, V>>
             {
                 foreach (var item in slot)
                 {
-                    int newSlotNumber = item.key.GetHashCode() % newCapacity;
+                    //int newSlotNumber = item.key.GetHashCode() % newCapacity;
+                    int newSlotNumber = FindSlotNumber(item.key);
                     if (newSlots[newSlotNumber] == null)
                     {
                         newSlots[newSlotNumber] = new LinkedList<KeyValue<K, V>>();
@@ -251,10 +283,22 @@ public class Program
 {
     static void Main(string[] args)
     {
-        HashTable<string, int> Table = new HashTable<string, int>();
-        Table.Add("one", 5);
-        Table.Add("two", 6);
-        Table.Add("three", 4);
+        HashTable<string, int> Table = new HashTable<string, int>(10001);
+
+        for (int i = 0; i < 10001; i++)
+        {
+            Console.WriteLine($"Test{i}");
+            Console.WriteLine(i);
+            Table.Add($"Test{i}", i);
+
+            if (i % 100 == 0)
+            {
+                Console.WriteLine($"Load factor: {Table.GetLoadFactor()}");
+                Console.WriteLine($"Collisions: {Table.GetCollisionCount()}");
+            }
+        }
+
+       
        
 
 
@@ -263,26 +307,26 @@ public class Program
         Console.WriteLine($"Capacity: {Table.Capacity()}");
 
         // Проверка существования ключа
-        Console.WriteLine($"Contains key 'two': {Table.ContainsKey("two")}");
+        Console.WriteLine($"Contains key 'Test9996': {Table.ContainsKey("Test9996")}");
 
         // Получение значения по ключу
-        Console.WriteLine($"Value for key 'three': {Table.Get("three")}");
+        Console.WriteLine($"Value for key 'Test6666': {Table.Get("Test6666")}");
 
         // Замена значения по ключу
         Table.AddOrReplace("two", 22);
 
         // Вывод всех ключей и значений
-        Console.WriteLine("Keys:");
-        foreach (var key in Table.Keys())
-        {
-            Console.WriteLine(key);
-        }
+        //Console.WriteLine("Keys:");
+        //foreach (var key in Table.Keys())
+        //{
+        //    Console.WriteLine(key);
+        //}
 
-        Console.WriteLine("Values:");
-        foreach (var value in Table.Values())
-        {
-            Console.WriteLine(value);
-        }
+        //Console.WriteLine("Values:");
+        //foreach (var value in Table.Values())
+        //{
+        //    Console.WriteLine(value);
+        //}
 
         // Поиск элемента по ключу
         KeyValue<string, int> foundItem = Table.Find("two");
